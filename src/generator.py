@@ -1,6 +1,7 @@
 import logging
 import chess
 from collections import namedtuple
+from chess.engine import Limit
 
 from src.utils import is_ambiguous
 
@@ -142,7 +143,7 @@ def analyze_position(board, engine, depth, multipv, is_player_move):
 
     # Analisar com multipv para jogadas do jogador
     if is_player_move:
-        results = engine.analyze(board, depth, multipv=multipv)
+        results = engine.analyse(board, Limit(depth=depth), multipv=multipv)
         return [
             AnalyzedMove(
                 move=info['pv'][0],
@@ -153,7 +154,7 @@ def analyze_position(board, engine, depth, multipv, is_player_move):
         ]
     else:
         # Para jogadas do oponente, precisamos apenas do melhor movimento
-        info = engine.analyze(board, depth)[0]
+        info = engine.analyse(board, Limit(depth=depth), multipv=multipv)[0]
         return [
             AnalyzedMove(
                 move=info['pv'][0],

@@ -21,7 +21,7 @@ def find_puzzle_candidates(game, engine, scan_depth):
 
         # Verificar se é uma posição interessante
         if should_investigate(prev_score, curr_score, node.board()):
-            logging.debug(f"Posição encontrada após {node.san(next_node.move)}")
+            logging.debug(f"Posição encontrada após {node.board().san(next_node.move)}")
             candidates.append({
                 'board': node.board().copy(),
                 'move': next_node.move,
@@ -83,7 +83,9 @@ def should_investigate(prev_score, curr_score, board):
 
 def sign(score):
     """Retorna o sinal da avaliação"""
-    if score.is_mate():
+    if isinstance(score, int):
+        return 1 if score > 0 else -1
+    elif score.is_mate():
         return 1 if score.mate() > 0 else -1
     else:
         return 1 if score.score() > 0 else -1
