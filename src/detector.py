@@ -1,91 +1,41 @@
-import logging
+"""
+detector.py - Detecção de candidatos a puzzles nas partidas.
+"""
 import chess
-from chess.engine import Cp
+import chess.pgn
 
-from src.utils import material_count, material_value
-
-def find_puzzle_candidates(game, engine, scan_depth):
-    """Encontra possíveis posições de puzzles em um jogo"""
+def find_candidates(game, engine, include_blunder=False):
+    """
+    Encontra posições candidatas a puzzles na partida fornecida.
+    Retorna uma lista de nós (posições) candidatos.
+    Se include_blunder=True, inclui posições onde houve um blunder (grande erro).
+    """
     candidates = []
-    prev_score = Cp(0)
+    # Configura o motor na posição inicial da partida
+    initial_fen = game.headers.get("FEN", chess.STARTING_FEN)
+    engine.set_fen_position(initial_fen)
+    # Avalia a posição inicial
+    prev_eval = engine.get_evaluation()
+    # Percorre todos os lances da partida
     node = game
-
-    logging.debug(f"Escaneando jogo com profundidade {scan_depth}...")
-
     while not node.is_end():
         next_node = node.variation(0)
-        next_board = next_node.board()
-
-        # Obter avaliação atual
-        curr_score = engine.evaluate_position(next_board, scan_depth)
-
-        # Verificar se é uma posição interessante
-        if should_investigate(prev_score, curr_score, node.board()):
-            logging.debug(f"Posição encontrada após {node.board().san(next_node.move)}")
-            candidates.append({
-                'board': node.board().copy(),
-                'move': next_node.move,
-                'prev_score': prev_score,
-                'curr_score': curr_score
-            })
-
-        prev_score = curr_score
+        move = next_node.move
+        # Aplica o lance no motor
+        engine.make_moves_from_current_position([move.uci()])
+        # Obtém a avaliação após o lance
+        eval_after = engine.get_evaluation()
+        if include_blunder:
+            # Se existe avaliação anterior e ambas são em centipawns
+            if prev_eval and prev_eval.get('Type') == 'cp' and eval_after.get('Type') == 'cp':
+                cp_before = prev_eval.get('Value')
+                cp_after = eval_after.get('Value')
+                # Verifica grande queda ou subida na avaliação (indicando blunder)
+                if (cp_before is not None and cp_after is not None and
+                        ((cp_before > 100 and cp_after < -100) or (cp_before < -100 and cp_after > 100))):
+                    # Marca a posição antes do lance como candidata a puzzle
+                    candidates.append(node)
+        # (Possível extensão para outros critérios de detecção de puzzle)
+        prev_eval = eval_after
         node = next_node
-
     return candidates
-
-def should_investigate(prev_score, curr_score, board):
-    """
-    Determina se a posição é interessante para um puzzle.
-
-    Esta função combina os melhores critérios dos três projetos.
-    """
-    # Ignorar se há poucas peças (exceto em mates)
-    if material_count(board) < 5 and not (prev_score.is_mate() or curr_score.is_mate()):
-        return False
-
-    # Casos de mate
-    if curr_score.is_mate():
-        # De uma posição equilibrada para um mate
-        if not prev_score.is_mate() and abs(prev_score.score()) < 150:
-            return True
-        # De uma posição vantajosa para um mate do adversário
-        if not prev_score.is_mate() and sign(prev_score) != sign(curr_score):
-            return True
-
-    # Casos de mudança significativa de avaliação
-    if not prev_score.is_mate() and not curr_score.is_mate():
-        prev_cp = prev_score.score()
-        curr_cp = curr_score.score()
-
-        # Mudança significativa na avaliação
-        if abs(curr_cp - prev_cp) >= 150:
-            return True
-
-        # De vantagem significativa para posição equilibrada
-        if abs(prev_cp) > 300 and abs(curr_cp) < 90:
-            return True
-
-        # De vantagem para desvantagem (ou vice-versa)
-        if sign(prev_cp) != sign(curr_cp) and abs(prev_cp) > 100 and abs(curr_cp) > 100:
-            return True
-
-    # Mudança entre mate e não mate
-    if prev_score.is_mate() and not curr_score.is_mate():
-        # Perdeu um mate
-        if sign(prev_score) != sign(curr_score):
-            return True
-        # De mate para posição equilibrada
-        if abs(curr_score.score()) < 150:
-            return True
-
-    return False
-
-def sign(score):
-    """Retorna o sinal da avaliação"""
-    if isinstance(score, int):
-        return 1 if score > 0 else -1
-    elif score.is_mate():
-        return 1 if score.mate() > 0 else -1
-    else:
-        return 1 if score.score() > 0 else -1
