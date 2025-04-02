@@ -1,2 +1,3 @@
-chess==1.9.3
-colorama==0.4.6
+python-chess
+stockfish
+tqdm
