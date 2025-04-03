@@ -1,5 +1,15 @@
 import argparse
 from src import generator
+import shutil
+import subprocess
+import os
+
+def ensure_stockfish_available():
+    if shutil.which("stockfish") is None and not os.path.isfile("./stockfish"):
+        print("Stockfish não encontrado. Baixando binário otimizado...")
+        subprocess.run(["bash", "build_stockfish.sh"], check=True)
+
+ensure_stockfish_available()
 
 parser = argparse.ArgumentParser(description="Extrair puzzles táticos de partidas de xadrez em PGN")
 parser.add_argument("input", help="Arquivo PGN de entrada com partidas")
