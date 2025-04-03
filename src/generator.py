@@ -1,9 +1,12 @@
+import os
+import shutil
 import chess
 import chess.engine
 import chess.pgn
 from tqdm import tqdm
 from src import ambiguity
 from src import exporter
+
 
 def format_eval(score):
     if score is None:
@@ -13,7 +16,7 @@ def format_eval(score):
             mate = score.white().mate()
             return f"M{abs(mate)}" if mate else "0"
         cp = score.white().score()
-        return f"{cp/100:.2f}"
+        return f"{cp / 100:.2f}"
     except:
         return "?"
 
@@ -54,12 +57,23 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
     global SCAN_DEPTH
     SCAN_DEPTH = depth
 
-    # Inicializar engine de xadrez (Stockfish)
-    engine_path = "stockfish"
+    # Detecta o caminho do Stockfish
+    local_stockfish = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "stockfish"))
+
+    if os.path.isfile(local_stockfish):
+        engine_path = local_stockfish  # usa o binário compilado local
+    elif shutil.which("stockfish"):
+        engine_path = "stockfish"  # usa o Stockfish instalado no sistema
+    else:
+        raise Exception("Nenhum executável do Stockfish foi encontrado. Compile ou instale o Stockfish.")
+
+        print(f"Usando Stockfish em: {engine_path}")
+
+    # Tenta iniciar o engine
     try:
         engine = chess.engine.SimpleEngine.popen_uci(engine_path)
     except Exception as e:
-        raise Exception(f"Não foi possível iniciar o motor de xadrez no caminho '{engine_path}'. Erro: {e}")
+        raise Exception(f"Não foi possível iniciar o Stockfish em '{engine_path}'. Erro: {e}")
 
     # Configurar retomada de progresso
     progress_file = None
