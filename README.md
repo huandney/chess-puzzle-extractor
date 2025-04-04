@@ -1,4 +1,4 @@
-# Chess Puzzle Extractor - Gerador de Puzzles de Xadrez
+# Chess PuzzleS Extractor - Gerador de Puzzles de Xadrez
 
 É uma ferramenta que analisa arquivos PGN de partidas de xadrez e gera automaticamente puzzles táticos identificando momentos onde um jogador cometeu um erro (blunder) e há uma série de lances táticos precisos para capitalizar esse erro.
 
