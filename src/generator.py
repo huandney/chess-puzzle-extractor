@@ -13,17 +13,16 @@ from src import ambiguity
 from src import exporter
 from src import config
 
-
 console = Console()
 
 
 def format_eval(score):
     """
     Formata a pontuação do motor de xadrez para um formato legível.
-
+    
     Args:
         score: Objeto Score do python-chess, contendo a avaliação
-
+        
     Returns:
         str: String formatada representando a avaliação (ex: "1.45" ou "M5")
     """
@@ -42,7 +41,7 @@ def format_eval(score):
 def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, verbose=False, resume=False):
     """
     Analisa jogos do arquivo PGN input_path e gera puzzles táticos conforme critérios.
-
+    
     Args:
         input_path (str): Caminho para o arquivo PGN contendo as partidas
         output_path (str, optional): Caminho para o arquivo de saída dos puzzles
@@ -50,7 +49,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
         max_variants (int): Número máximo de variantes alternativas permitidas
         verbose (bool): Se True, exibe informações detalhadas durante análise
         resume (bool): Se True, retoma a análise a partir do último jogo processado
-
+        
     Returns:
         tuple: (total_games, puzzles_found, puzzles_rejected, reason_stats)
     """
@@ -87,7 +86,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
             if line.strip().startswith("[Event"):
                 total_games += 1
         pgn_file.seek(0)
-
+    
     # Se nenhum jogo for encontrado, definir como pelo menos 1
     total_games = max(1, total_games)
 
@@ -102,11 +101,10 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
 
     # Detecta o caminho do Stockfish
     local_stockfish = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "stockfish"))
-
     if os.path.isfile(local_stockfish):
         engine_path = local_stockfish  # usa o binário compilado local
     elif shutil.which("stockfish"):
-        engine_path = "stockfish"  # usa o Stockfish instalado no sistema
+        engine_path = "stockfish"      # usa o Stockfish instalado no sistema
     else:
         raise Exception("Nenhum executável do Stockfish foi encontrado. Compile ou instale o Stockfish.")
 
@@ -146,7 +144,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
     except Exception:
         progress_file = None
 
-    # Criar status inicial
+    # Cabeçalho inicial
     console.print("[bold cyan]Iniciando análise tática das partidas...[/]")
     # Mostrar informações sobre o arquivo de entrada
     try:
@@ -158,12 +156,12 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
     except:
         pass
 
-    # Mostrar configurações do motor
+    # Exibe configurações do motor
     console.print(f"Profundidade de análise: {depth} (scan: [bold cyan]{depths['scan']}[/bold cyan], solve: [bold cyan]{depths['solve']}[/bold cyan])")
     console.print(f"Variantes máximas permitidas: [cyan]{max_variants}[/]")
-    console.print()
+    console.print()  # Espaço extra antes da barra
 
-    # Configurar barra de progresso rica
+    # Usamos Progress com transient=False para manter a barra fixa e progress.log para as mensagens
     with Progress(
         SpinnerColumn(),
         TextColumn("[bold blue]{task.description}"),
@@ -185,21 +183,21 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
         while True:
             game = chess.pgn.read_game(pgn_file)
             if game is None:
-                break  # fim do arquivo PGN
+                break  # Fim do arquivo PGN
             game_count += 1
 
             # Obter headers originais do jogo
             original_headers = game.headers.copy()
             board = game.board()
 
-            # Avaliação inicial do motor (posição inicial)
+            # Avaliação inicial da posição
             try:
                 info = engine.analyse(board, limit=chess.engine.Limit(depth=depths['scan']))
             except Exception as e:
-                console.print(f"\n[red]Erro ao analisar posição inicial do jogo {game_count}: {e}[/]")
+                progress.log(f"[red]Erro ao analisar posição inicial do jogo {game_count}: {e}[/red]")
                 continue
             prev_score = info.get("score")
-            prev_cp = prev_score.pov(chess.WHITE).score() if prev_score is not None else None
+            prev_cp = prev_score.pov(chess.WHITE).score() if prev_score else None
 
             # Iterar movimentos do jogo
             move_number = 0
@@ -209,7 +207,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                 move_san = board.san(move)
                 board.push(move)
 
-                # Avaliar nova posição após o lance
+                # Nova análise após o lance
                 try:
                     # Tentativa com profundidade normal
                     info = engine.analyse(board, limit=chess.engine.Limit(depth=depths['scan']))
@@ -217,7 +215,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                     # Fallback com profundidade reduzida em caso de erro
                     info = engine.analyse(board, limit=chess.engine.Limit(depth=depths['quick']))
                 score = info.get("score")
-                post_cp = score.pov(chess.WHITE).score() if score is not None else None
+                post_cp = score.pov(chess.WHITE).score() if score else None
 
                 # Modo verbose: mostrar lance e avaliações antes/depois
                 if verbose:
@@ -225,13 +223,13 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                     post_str = format_eval(score)
                     move_index = board.fullmove_number  # número do lance completo atual
                     log_prefix = f"{move_index}." if side_to_move == "White" else f"{move_index}..."
-
+                    
                     # Estilizar avaliação (vermelho/verde para variações significativas)
                     eval_text = Text()
                     eval_text.append(f"{log_prefix} {move_san}: eval ")
                     eval_text.append(prev_str, style="blue")
                     eval_text.append(" → ")
-
+                    
                     if prev_cp is not None and post_cp is not None:
                         diff = post_cp - prev_cp
                         if abs(diff) > 50:  # 0.5 peão de diferença
@@ -241,10 +239,10 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                             eval_text.append(post_str, style="blue")
                     else:
                         eval_text.append(post_str, style="blue")
+                        
+                    progress.log(eval_text)
 
-                    console.print(eval_text)
-
-                # Verificar queda de avaliação (potencial blunder)
+                # Verifica queda de avaliação (possível blunder)
                 if prev_cp is not None and post_cp is not None:
                     blunder = False
                     if board.turn == chess.BLACK:
@@ -266,19 +264,15 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                             side = "Brancas" if solver_color == chess.WHITE else "Pretas"
                             prev_str = format_eval(prev_score)
                             post_str = format_eval(score)
-                            console.print(Panel(
-                                f"Candidato a puzzle detectado no lance {move_number}\n"
-                                f"{side_to_move} cometeu erro: avaliação {prev_str} → {post_str}\n"
-                                f"Diferença: {diff_pawn:.2f} peões",
-                                title="[bold yellow]Candidato a Puzzle[/]",
-                                border_style="yellow"
-                            ))
+                            progress.log(f"[bold yellow]Candidato a puzzle detectado no lance {move_number}[/bold yellow]")
+                            progress.log(f"{side_to_move} cometeu erro: avaliação {prev_str} → {post_str}")
+                            progress.log(f"Diferença: {diff_pawn:.2f} peões")
                         puzzle_ok = True
                         reason = None
 
                         # 1. Filtro de vantagem prévia: solver_color já tinha grande vantagem?
-                        solver_prev_adv = prev_cp if solver_color == chess.WHITE else (-prev_cp if prev_cp is not None else None)
-                        if solver_prev_adv is not None and solver_prev_adv > config.WINNING_ADVANTAGE:
+                        solver_prev_adv = prev_cp if solver_color == chess.WHITE else (-prev_cp if prev_cp else None)
+                        if solver_prev_adv and solver_prev_adv > config.WINNING_ADVANTAGE:
                             puzzle_ok = False
                             reason = "ganho não instrutivo"
                             reason_stats["ganho não instrutivo"] += 1
@@ -325,11 +319,10 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                                 node_s1 = node.add_main_variation(best_move)
                                 for alt in alt_moves:
                                     node.add_variation(alt)
-
+                                
                                 # b) Resposta do oponente (O1)
                                 opponent_board = solver_board.copy()
                                 opponent_board.push(best_move)
-                                opp_color = chess.BLACK if solver_color == chess.WHITE else chess.WHITE
                                 try:
                                     # Análise profunda para resposta do oponente
                                     info_opp = engine.analyse(opponent_board, limit=chess.engine.Limit(depth=depths['solve']))
@@ -346,7 +339,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                                 if opp_move is None:
                                     opp_move = list(opponent_board.legal_moves)[0]
                                 node_o1 = node_s1.add_main_variation(opp_move)
-
+                                
                                 # c) Segundo lance do solucionador (S2)
                                 solver_board2 = opponent_board.copy()
                                 solver_board2.push(opp_move)
@@ -379,14 +372,14 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                                 reason = "sequência muito curta"
                                 reason_stats["sequência muito curta"] += 1
 
-                        # Decisão final sobre o puzzle candidato
+                        # Decisão final sobre o puzzle
                         if puzzle_ok:
                             # Categorizar objetivo e fase do jogo nos headers PGN
                             node_iter = puzzle_game
                             while node_iter.variations:
                                 node_iter = node_iter.variations[0]
                             final_board = node_iter.board()
-
+                            
                             # Determinar objetivo (mate, reversão, equalização, defesa ou blunder)
                             if final_board.is_checkmate():
                                 objective = "Mate"
@@ -394,12 +387,12 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                                 # Avaliar posição final com menos profundidade (quick)
                                 final_info = engine.analyse(final_board, limit=chess.engine.Limit(depth=depths['quick']))
                                 final_score = final_info.get("score")
-                                final_cp = final_score.pov(solver_color).score() if final_score is not None else None
-
+                                final_cp = final_score.pov(solver_color).score() if final_score else None
+                                
                                 # Definir tipo de puzzle com base na avaliação final
                                 final_win = (final_cp is not None and final_cp >= config.WINNING_ADVANTAGE)
                                 final_draw = (final_cp is not None and -config.DRAWING_RANGE < final_cp < config.DRAWING_RANGE)
-
+                                
                                 if final_win:
                                     # Vitória: distinguir entre reversão (estava perdendo) e blunder normal
                                     objective = "Reversão" if solver_prev_adv is not None and solver_prev_adv < 0 else "Blunder"
@@ -408,13 +401,17 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                                     objective = "Equalização" if solver_prev_adv is not None and solver_prev_adv < 0 else "Defesa"
                                 else:
                                     objective = "Defesa"
-
+                                    
                             # Determinar fase (abertura, meio-jogo ou final)
                             fullmove_num = board_pre_blunder.fullmove_number
                             # Contar peças não-rei no tabuleiro
-                            piece_count = sum(1 for sq in chess.SQUARES
-                                              if board_pre_blunder.piece_at(sq) and board_pre_blunder.piece_at(sq).piece_type != chess.KING)
-
+                            piece_count = sum(
+                                1
+                                for sq in chess.SQUARES
+                                if board_pre_blunder.piece_at(sq)
+                                and board_pre_blunder.piece_at(sq).piece_type != chess.KING
+                            )
+                            
                             # Aplicar critérios de fase baseados em lance e peças
                             if fullmove_num <= 10:
                                 phase = "Abertura"
@@ -422,60 +419,46 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                                 phase = "Final"
                             else:
                                 phase = "Meio-jogo"
-
+                                
                             # Adicionar metadados ao puzzle
                             puzzle_game.headers["Objetivo"] = objective
                             puzzle_game.headers["Fase"] = phase
 
-                            # Incrementar contador e salvar puzzle
                             puzzles_found += 1
                             if output_handle:
                                 exporter.export_puzzle(puzzle_game, output_handle)
 
-                            # Mostrar puzzle gerado na interface
+                            # Exibir puzzle gerado
                             if not verbose:
-                                # Versão sem bordas para facilitar a cópia do PGN
-                                console.print(f"\n[bold green]Puzzle #{puzzles_found} Encontrado:[/]")
-                                # Colorir o cabeçalho do PGN em azul claro, mantendo o conteúdo em branco
+                                progress.log(f"[bold green]Puzzle #{puzzles_found} Encontrado[/bold green]")
                                 pgn_text = str(puzzle_game)
-                                # Dividir entre cabeçalho e movimentos
                                 parts = pgn_text.split("\n\n", 1)
                                 if len(parts) == 2:
                                     headers, moves = parts
                                     colored_headers = "\n".join([f"[cyan]{line}[/cyan]" for line in headers.split("\n")])
-                                    console.print(colored_headers)
-                                    console.print(f"\n{moves}")
+                                    progress.log(colored_headers)
+                                    progress.log(f"\n{moves}")
                                 else:
-                                    console.print(pgn_text)
-                                console.print()
+                                    progress.log(pgn_text)
                             else:
-                                # No modo verbose, mostrar mensagem de sucesso e o PGN completo
-                                console.print("[bold green]Puzzle gerado com sucesso.[/]\n")
-                                console.print(str(puzzle_game))
-                                console.print()
+                                progress.log("[bold green]Puzzle gerado com sucesso.[/bold green]")
                         else:
-                            # Puzzle rejeitado
                             puzzles_rejected += 1
                             if verbose and reason:
-                                console.print(f"[yellow]Descartado:[/] {reason}.\n")
-                # Atualizar avaliação anterior para o próximo lance
+                                progress.log(f"[yellow]Descartado:[/] {reason}.")
                 prev_score = score
                 prev_cp = post_cp
 
-            # Atualizar progresso
             progress.update(
                 task_id,
                 advance=1,
                 description=f"[yellow]Analisando partidas... [green]Encontrados: {puzzles_found} [red]Rejeitados: {puzzles_rejected}",
                 refresh=True  # Força atualização da barra
             )
-
-            # Registrar progresso no arquivo para possível retomada
             if progress_file:
                 progress_file.write(f"{game_count}\n")
                 progress_file.flush()
 
-    # Finalização
     engine.quit()
     if progress_file:
         progress_file.close()
@@ -483,14 +466,8 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
     # ------------------------------------------
     # Apresentação final das estatísticas
     # ------------------------------------------
-    # 1) Uma linha em branco para dar espaço
-    console.print()
-    # 2) Tabela com 1 linha e 3 colunas (alinhamentos distintos)
-    stats_table = Table(
-        box=None,         # sem linhas de grade
-        show_header=False,
-        expand=True
-    )
+    console.print()  # Espaço extra
+    stats_table = Table(box=None, show_header=False, expand=True)
     stats_table.add_column(justify="left")
     stats_table.add_column(justify="center")
     stats_table.add_column(justify="right")
@@ -499,7 +476,6 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
         f"[bold]Puzzles encontrados:[/] [green]{puzzles_found}[/]",
         f"[bold]Puzzles rejeitados:[/] [red]{puzzles_rejected}[/]"
     )
-    # 3) Panel minimalista: título "Estatísticas da Análise" em negrito
     panel_main = Panel(
         stats_table,
         title="[bold cyan]Estatísticas da Análise[/]",
@@ -509,7 +485,6 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
     )
     console.print(panel_main)
 
-    # 4) Se houver rejeições, mostrar motivos em outro painel
     if puzzles_rejected > 0:
         reasons_text = Text()
         reasons_text.append("Motivos de rejeição:\n\n", style="bold yellow")
@@ -527,15 +502,8 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                     color = "blue"
                 else:
                     color = "white"
-
-                reasons_text.append(
-                    f" • {reason.capitalize()}: ",
-                    style=f"bold {color}"
-                )
-                reasons_text.append(
-                    f"{count} ({percent:.1f}%)\n",
-                    style=color
-                )
+                reasons_text.append(f" • {reason.capitalize()}: ", style=f"bold {color}")
+                reasons_text.append(f"{count} ({percent:.1f}%)\n", style=color)
         panel_reasons = Panel(
             reasons_text,
             border_style="yellow",
