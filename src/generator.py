@@ -67,7 +67,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
         "sequência muito curta": 0
     }
 
-    # Estatísticas adicionais
+    # Estatísticas adicionais, para os paineis
     objetivo_stats = defaultdict(int)  # Contagem por tipo de objetivo
     fase_stats = defaultdict(int)      # Contagem por fase de jogo
     tempo_inicio = time.time()         # Marca o início da análise
