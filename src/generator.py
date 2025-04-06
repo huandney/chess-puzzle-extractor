@@ -264,9 +264,10 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                             side = "Brancas" if solver_color == chess.WHITE else "Pretas"
                             prev_str = format_eval(prev_score)
                             post_str = format_eval(score)
-                            progress.log(f"[bold yellow]Candidato a puzzle detectado no lance {move_number}[/bold yellow]")
-                            progress.log(f"{side_to_move} cometeu erro: avaliação {prev_str} → {post_str}")
-                            progress.log(f"Diferença: {diff_pawn:.2f} peões")
+                            # Combinando mensagens de log em uma única chamada
+                            progress.log(f"[bold yellow]Candidato a puzzle detectado no lance {move_number}[/bold yellow]\n"
+                                        f"{side_to_move} cometeu erro: avaliação {prev_str} → {post_str}\n"
+                                        f"Diferença: {diff_pawn:.2f} peões")
                         puzzle_ok = True
                         reason = None
 
@@ -430,22 +431,26 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
 
                             # Exibir puzzle gerado
                             if not verbose:
-                                progress.log(f"[bold green]Puzzle #{puzzles_found} Encontrado[/bold green]")
+                                # Usar progress.print para exibir sem afetar a formatação do PGN
+                                progress.print(f"[bold green]Puzzle #{puzzles_found} Encontrado[/bold green]")
                                 pgn_text = str(puzzle_game)
                                 parts = pgn_text.split("\n\n", 1)
                                 if len(parts) == 2:
                                     headers, moves = parts
-                                    colored_headers = "\n".join([f"[cyan]{line}[/cyan]" for line in headers.split("\n")])
-                                    progress.log(colored_headers)
-                                    progress.log(f"\n{moves}")
+                                    progress.print(f"{pgn_text}\n")
                                 else:
-                                    progress.log(pgn_text)
+                                    # Caso não consiga dividir, exibir o texto completo
+                                    progress.print(f"{pgn_text}\n")
                             else:
-                                progress.log("[bold green]Puzzle gerado com sucesso.[/bold green]")
+                                # Modo verbose: Mostrar mensagem de sucesso com uma linha em branco após
+                                progress.log("[bold green]Puzzle gerado com sucesso.[/bold green]\n")
+                                
+                                # Exibir o PGN completo usando progress.print para facilitar cópia
+                                progress.print(str(puzzle_game) + "\n")
                         else:
                             puzzles_rejected += 1
                             if verbose and reason:
-                                progress.log(f"[yellow]Descartado:[/] {reason}.")
+                                progress.log(f"[yellow]Descartado:[/] {reason}.\n")
                 prev_score = score
                 prev_cp = post_cp
 
