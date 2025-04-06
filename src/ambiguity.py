@@ -1,8 +1,6 @@
 import chess
 import chess.engine
-
-ALT_THRESHOLD = 25  # diferença máxima (em cp) para considerar lances equivalentes (0.25 peão)
-PUZZLE_UNICITY_THRESHOLD = 150  # margem mínima para próximo lance pior (1.5 peão)
+from src import config
 
 def find_alternatives(engine, board, solver_color, max_variants):
     """
@@ -13,6 +11,7 @@ def find_alternatives(engine, board, solver_color, max_variants):
     requested_pv = max_variants + 1
     requested_pv_excess = max_variants + 2
     try:
+        # Analisar com multipv para obter várias variantes
         info_list = engine.analyse(board, limit=chess.engine.Limit(depth=18), multipv=requested_pv_excess)
     except chess.engine.EngineError:
         # Fallback: análise single PV se multipv falhar
@@ -56,7 +55,7 @@ def find_alternatives(engine, board, solver_color, max_variants):
     best_score = scores[0]
     candidates_moves = []
     for idx, sc in enumerate(scores):
-        if best_score - sc <= ALT_THRESHOLD:
+        if best_score - sc <= config.ALT_THRESHOLD:
             pv_line = info_list[idx].get("pv")
             if pv_line:
                 move = pv_line[0]
@@ -78,11 +77,11 @@ def find_alternatives(engine, board, solver_color, max_variants):
     if max_variants > 0:
         if len(scores) > len(candidates_moves):
             next_score = scores[len(candidates_moves)]
-            if best_score - next_score < PUZZLE_UNICITY_THRESHOLD:
+            if best_score - next_score < config.PUZZLE_UNICITY_THRESHOLD:
                 return None
     else:
         # max_variants = 0: exigir que melhor lance seja claramente superior ao segundo melhor
-        if len(scores) >= 2 and (best_score - scores[1] < PUZZLE_UNICITY_THRESHOLD):
+        if len(scores) >= 2 and (best_score - scores[1] < config.PUZZLE_UNICITY_THRESHOLD):
             return None
 
     return {"best": best_move, "alternatives": alt_moves}
