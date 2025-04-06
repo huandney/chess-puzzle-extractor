@@ -172,7 +172,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
         "[cyan]ETA:[/]",
         TimeRemainingColumn(),
         console=console if not verbose else None,  # Desativa barra em modo verbose
-        transient=False,  # Mantém o histórico da barra
+        transient=True,  # Define como transitório para a barra desaparecer ao final
         refresh_per_second=5  # Atualiza 5x por segundo para mais fluidez
     ) as progress:
         # Adicionar tarefa principal
