@@ -50,7 +50,7 @@ def main():
             args.input, args.output, depth=args.depth, max_variants=args.max_variants,
             verbose=args.verbose, resume=args.resume
         )
-        console.print(f"\n[bold green]Processo concluído com sucesso![/bold green]")
+        console.print(f"[bold green]Processo concluído com sucesso![/bold green]")
     except FileNotFoundError:
         console.print(f"[bold red]Erro: O arquivo {args.input} não foi encontrado![/bold red]")
         exit(1)
