@@ -40,17 +40,17 @@ def format_eval(score):
         return "?"
 
 
-def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, verbose=False, resume=False):
+def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, max_variants=config.DEFAULT_MAX_VARIANTS, verbose=False, resume=False):
     """
     Analisa jogos do arquivo PGN input_path e gera puzzles táticos conforme critérios.
 
     Args:
-        input_path (str): Caminho para o arquivo PGN contendo as partidas
-        output_path (str, optional): Caminho para o arquivo de saída dos puzzles
-        depth (int): Profundidade máxima de análise do motor
-        max_variants (int): Número máximo de variantes alternativas permitidas
-        verbose (bool): Se True, exibe informações detalhadas durante análise
-        resume (bool): Se True, retoma a análise a partir do último jogo processado
+        input_path (str): Caminho para o arquivo PGN contendo as partidas.
+        output_path (str, optional): Caminho para o arquivo de saída dos puzzles (padrão: config.DEFAULT_OUTPUT).
+        depth (int): Profundidade máxima de análise do motor (padrão: config.DEFAULT_DEPTH).
+        max_variants (int): Número máximo de variantes alternativas permitidas (padrão: config.DEFAULT_MAX_VARIANTS).
+        verbose (bool): Se True, exibe informações detalhadas durante análise.
+        resume (bool): Se True, retoma a análise a partir do último jogo processado.
 
     Returns:
         tuple: (total_games, puzzles_found, puzzles_rejected, reason_stats)
@@ -250,15 +250,16 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
 
                 # Verifica queda de avaliação (possível blunder)
                 if prev_cp is not None and post_cp is not None:
+                    eval_diff = prev_cp - post_cp
                     blunder = False
-                    if board.turn == chess.BLACK:
-                        # White acabou de jogar e causou queda na avaliação
-                        if post_cp < prev_cp - config.BLUNDER_THRESHOLD:
+                    solver_color = None
+                    
+                    if board.turn == chess.BLACK:  # Brancas acabaram de jogar e causou queda na avaliação
+                        if eval_diff >= config.BLUNDER_THRESHOLD:
                             blunder = True
                             solver_color = chess.BLACK  # Pretas devem resolver
-                    else:
-                        # Black acabou de jogar e causou queda na avaliação
-                        if post_cp > prev_cp + config.BLUNDER_THRESHOLD:
+                    else:  # Pretas acabaram de jogar e causou queda na avaliação
+                        if eval_diff <= -config.BLUNDER_THRESHOLD:
                             blunder = True
                             solver_color = chess.WHITE  # Brancas devem resolver
 
