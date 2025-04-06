@@ -19,7 +19,7 @@ def ensure_stockfish_available():
             console.print(f"[red]Erro ao instalar Stockfish: {e}[/red]")
             exit(1)
     else:
-        console.print("[bold green]Stockfish: Disponível[/bold green]")
+        console.print("[bold green]Stockfish: Disponível[/bold green]\n")
 
 def main():
     parser = argparse.ArgumentParser(description="Extrair puzzles táticos de partidas de xadrez em PGN")
@@ -31,15 +31,10 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true", help="Mostrar saída verbosa (detalhes da análise)")
     args = parser.parse_args()
 
-    # Linha em branco para dar distância no topo
-    console.print("\n")
-
-    # Cabeçalho simplificado
-    console.print("[bold blue]♟️  Chess Puzzles Extractor[/bold blue]", justify="center")
+    # Cabeçalho
+    console.print("\n[bold blue]♟️  Chess Puzzles Extractor[/bold blue]", justify="center")
 
     ensure_stockfish_available()
-    # Apenas uma linha em branco após a mensagem de Stockfish
-    console.print("")
 
     # Exibir configurações de forma minimalista e elegante
     console.print("[bold cyan]⚙️  Configurações:[/bold cyan]")
