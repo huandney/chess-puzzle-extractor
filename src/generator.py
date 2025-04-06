@@ -3,6 +3,8 @@ import shutil
 import chess
 import chess.engine
 import chess.pgn
+import time
+from collections import defaultdict
 from rich.progress import Progress, TextColumn, BarColumn, TimeElapsedColumn, TimeRemainingColumn, SpinnerColumn
 from rich.panel import Panel
 from rich.console import Console
@@ -64,6 +66,11 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
         "múltiplas soluções": 0,
         "sequência muito curta": 0
     }
+
+    # Estatísticas adicionais
+    objetivo_stats = defaultdict(int)  # Contagem por tipo de objetivo
+    fase_stats = defaultdict(int)      # Contagem por fase de jogo
+    tempo_inicio = time.time()         # Marca o início da análise
 
     # Abrir arquivo PGN de entrada
     try:
@@ -149,7 +156,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
     # Mostrar informações sobre o arquivo de entrada
     try:
         file_size = os.path.getsize(input_path) / (1024 * 1024)  # Tamanho em MB
-        console.print(f"Arquivo de entrada: [yellow]{input_path}[/] ([cyan]{file_size:.2f} MB[/])")
+        console.print(f"Arquivo de entrada: [magenta]{input_path}[/] ([cyan]{file_size:.2f} MB[/])")
         console.print(f"Total de jogos a analisar: [cyan]{total_games}[/]")
         if resume and skip_games > 0:
             console.print(f"Retomando a partir do jogo: [green]{skip_games}[/] ([cyan]{(skip_games/total_games)*100:.1f}%[/] concluído)")
@@ -158,8 +165,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
 
     # Exibe configurações do motor
     console.print(f"Profundidade de análise: {depth} (scan: [bold cyan]{depths['scan']}[/bold cyan], solve: [bold cyan]{depths['solve']}[/bold cyan])")
-    console.print(f"Variantes máximas permitidas: [cyan]{max_variants}[/]")
-    console.print()  # Espaço extra antes da barra
+    console.print(f"Variantes máximas permitidas: [cyan]{max_variants}[/]\n")
 
     # Usamos Progress com transient=False para manter a barra fixa e progress.log para as mensagens
     with Progress(
@@ -425,6 +431,10 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                             puzzle_game.headers["Objetivo"] = objective
                             puzzle_game.headers["Fase"] = phase
 
+                            # Atualizar estatísticas por categoria
+                            objetivo_stats[objective] += 1
+                            fase_stats[phase] += 1
+
                             puzzles_found += 1
                             if output_handle:
                                 exporter.export_puzzle(puzzle_game, output_handle)
@@ -432,7 +442,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                             # Exibir puzzle gerado
                             if not verbose:
                                 # Usar progress.print para exibir sem afetar a formatação do PGN
-                                progress.print(f"[bold green]Puzzle #{puzzles_found} Encontrado[/bold green]")
+                                progress.print(f"[bold yellow]Puzzle #{puzzles_found} Encontrado[/bold yellow]")
                                 pgn_text = str(puzzle_game)
                                 parts = pgn_text.split("\n\n", 1)
                                 if len(parts) == 2:
@@ -450,7 +460,7 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
                         else:
                             puzzles_rejected += 1
                             if verbose and reason:
-                                progress.log(f"[yellow]Descartado:[/] {reason}.\n")
+                                progress.log(f"[bold red]Descartado:[/] [bold]{reason}.[/]\n")
                 prev_score = score
                 prev_cp = post_cp
 
@@ -468,21 +478,58 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
     if progress_file:
         progress_file.close()
 
+    # Cálculo do tempo ao final da função
+    tempo_total = time.time() - tempo_inicio
+    tempo_medio_por_jogo = tempo_total / max(1, game_count)
+
     # ------------------------------------------
     # Apresentação final das estatísticas
     # ------------------------------------------
+
+    if verbose:
+        console.print()  # Adiciona uma linha em branco apenas no modo verbose
+
     # Painel principal com números centrais em destaque
     stats_panel = Panel(
         f"[bold cyan]Jogos analisados:[/] [white]{game_count}[/]  •  "
         f"[bold green]Puzzles encontrados:[/] [white]{puzzles_found}[/]  •  "
         f"[bold red]Puzzles rejeitados:[/] [white]{puzzles_rejected}[/]",
-        title="[bold blue]Estatísticas da Análise[/]",
-        border_style="blue",
+        title="[bold cyan]Estatísticas da Análise[/]",
+        border_style="cyan",
         padding=(1, 2),
         width=80,
         title_align="center"
     )
     console.print(stats_panel)
+
+    # Painel de desempenho (novo)
+    perf_table = Table(box=None, show_header=False, width=76)
+    perf_table.add_column("Métrica", style="bold cyan", justify="right", width=40)
+    perf_table.add_column("Valor", style="white", justify="left")
+
+    # Formatação do tempo
+    h, m = divmod(tempo_total / 60, 60)
+    s = tempo_total % 60
+    tempo_formatado = f"{int(h):02d}h {int(m):02d}m {int(s):02d}s"
+
+    # Adiciona linhas à tabela de desempenho
+    perf_table.add_row("Tempo total de análise:", tempo_formatado)
+    perf_table.add_row("Tempo médio por jogo:", f"{tempo_medio_por_jogo:.2f}s")
+
+    if game_count > 0:
+        taxa_sucesso = (puzzles_found / game_count) * 100
+        perf_table.add_row("Taxa de extração:", f"{taxa_sucesso:.1f}% (puzzles/jogos)")
+
+    perf_panel = Panel(
+        perf_table,
+        title="[bold blue]Desempenho da Análise[/]",
+        border_style="blue",
+        padding=(1, 1),
+        width=80,
+        title_align="center"
+    )
+    console.print(perf_panel)
+
     # Painel de detalhamento apenas se houver rejeições
     if puzzles_rejected > 0:
         # Cria uma tabela para os motivos de rejeição
@@ -511,14 +558,69 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
         # Painel contendo a tabela
         details_panel = Panel(
             reasons_table,
-            title="[bold yellow]Motivos de Rejeição[/]",
-            border_style="yellow",
+            title="[bold red]Motivos de Rejeição[/]",
+            border_style="red",
             padding=(1, 1),
             width=80,
             title_align="center"
         )
         console.print(details_panel)
+
+    # Adicionar painel com estatísticas de puzzles encontrados
+    if puzzles_found > 0:
+        # Tabela para estatísticas por objetivo
+        puzzles_stat_table = Table(box=None, show_header=True, width=76)
+        puzzles_stat_table.add_column("Categoria", style="bold", justify="left")
+        puzzles_stat_table.add_column("Quantidade", justify="center")
+        puzzles_stat_table.add_column("Porcentagem", justify="right")
+
+        # Seção para Objetivos
+        puzzles_stat_table.add_row("", "", "", style="bold cyan")
+        puzzles_stat_table.add_row("[bold]Por Objetivo[/]", "", "")
+        for objetivo, count in sorted(objetivo_stats.items(), key=lambda x: x[1], reverse=True):
+            percent = (count / puzzles_found) * 100
+            # Escolher cor com base no tipo de objetivo
+            if objetivo == "Mate":
+                row_style = "red"
+            elif objetivo == "Reversão":
+                row_style = "green"
+            elif objetivo == "Equalização":
+                row_style = "yellow"
+            elif objetivo == "Defesa":
+                row_style = "blue"
+            else:
+                row_style = "white"
+            puzzles_stat_table.add_row(objetivo, str(count), f"{percent:.1f}%", style=row_style)
+
+        # Seção para Fases
+        puzzles_stat_table.add_row("", "", "", style="bold magenta")
+        puzzles_stat_table.add_row("[bold]Por Fase do Jogo[/]", "", "")
+        for fase, count in sorted(fase_stats.items(), key=lambda x: x[1], reverse=True):
+            percent = (count / puzzles_found) * 100
+            # Escolher cor com base na fase
+            if fase == "Abertura":
+                row_style = "yellow"
+            elif fase == "Meio-jogo":
+                row_style = "green"
+            elif fase == "Final":
+                row_style = "cyan"
+            else:
+                row_style = "white"
+            puzzles_stat_table.add_row(fase, str(count), f"{percent:.1f}%", style=row_style)
+
+        # Painel contendo a tabela
+        puzzles_panel = Panel(
+            puzzles_stat_table,
+            title="[bold green]Categorias de Puzzles Encontrados[/]",
+            border_style="green",
+            padding=(1, 1),
+            width=80,
+            title_align="center"
+        )
+        console.print(puzzles_panel)
+
     # Adiciona informação do arquivo de saída, se disponível
     if output_path:
         console.print(f"\n[bold blue]Puzzles salvos em:[/] [magenta]{output_path}[/]")
+
     return game_count, puzzles_found, puzzles_rejected, reason_stats
