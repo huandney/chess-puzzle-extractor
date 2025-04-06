@@ -471,7 +471,6 @@ def generate_puzzles(input_path, output_path=None, depth=12, max_variants=2, ver
     # ------------------------------------------
     # Apresentação final das estatísticas
     # ------------------------------------------
-    console.print()  # Espaço extra
     stats_table = Table(box=None, show_header=False, expand=True)
     stats_table.add_column(justify="left")
     stats_table.add_column(justify="center")
