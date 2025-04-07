@@ -314,7 +314,7 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                             # a) Primeiro lance do solucionador (S1)
                             solver_board = board_post_blunder.copy()
                             # Análise de ambiguidade (melhor lance e alternativas viáveis)
-                            candidates = ambiguity.find_alternatives(engine, solver_board, solver_color, max_variants)
+                            candidates = ambiguity.find_alternatives(engine, solver_board, solver_color, max_variants, depth=depths['solve'])
                             if candidates is None:
                                 # Se muitas alternativas equivalentes, puzzle rejeitado
                                 puzzle_ok = False
@@ -352,7 +352,7 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                                 solver_board2 = opponent_board.copy()
                                 solver_board2.push(opp_move)
                                 # Nova análise de ambiguidade para S2
-                                candidates2 = ambiguity.find_alternatives(engine, solver_board2, solver_color, max_variants)
+                                candidates2 = ambiguity.find_alternatives(engine, solver_board2, solver_color, max_variants, depth=depths['solve'])
                                 if candidates2 is None:
                                     puzzle_ok = False
                                     reason = "múltiplas soluções"
