@@ -2,21 +2,32 @@ import chess
 import chess.engine
 from src import config
 
-def find_alternatives(engine, board, solver_color, max_variants):
+def find_alternatives(engine, board, solver_color, max_variants, depth=None):
     """
     Analisa a posição dada (lado solver_color para jogar) e retorna o melhor lance e alternativas dentro de ALT_THRESHOLD.
     Retorna {"best": Move, "alternatives": [Move, ...]} ou None se houver mais alternativas do que max_variants permite.
+    
+    Args:
+        engine: Motor de xadrez para análise
+        board: Posição a ser analisada
+        solver_color: Cor que deve resolver o puzzle (WHITE ou BLACK)
+        max_variants: Número máximo de variantes alternativas permitidas
+        depth: Profundidade de análise (usa valor configurado pelo usuário)
     """
+    # Se a profundidade não for especificada, usar um valor padrão
+    if depth is None:
+        depth = config.DEFAULT_DEPTH
+        
     # Definir número de PVs a pedir: max_variants+2 para detectar excesso
     requested_pv = max_variants + 1
     requested_pv_excess = max_variants + 2
     try:
-        # Analisar com multipv para obter várias variantes
-        info_list = engine.analyse(board, limit=chess.engine.Limit(depth=18), multipv=requested_pv_excess)
+        # Analisar com multipv para obter várias variantes (usando a profundidade informada)
+        info_list = engine.analyse(board, limit=chess.engine.Limit(depth=depth), multipv=requested_pv_excess)
     except chess.engine.EngineError:
-        # Fallback: análise single PV se multipv falhar
+        # Fallback: análise single PV se multipv falhar (usando a mesma profundidade)
         try:
-            best = engine.analyse(board, limit=chess.engine.Limit(depth=18))
+            best = engine.analyse(board, limit=chess.engine.Limit(depth=depth))
             if not best:
                 return None
             info_list = [best]
