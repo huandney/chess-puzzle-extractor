@@ -1,25 +1,23 @@
 import argparse
-from src import generator
 import shutil
 import subprocess
 import os
-from rich.console import Console
-from rich.panel import Panel
+from src import generator
 from src import config
-
-console = Console()
+from src import visual
 
 def ensure_stockfish_available():
+    # Verifica se Stockfish está disponível localmente ou instalado no sistema
     if shutil.which("stockfish") is None and not os.path.isfile("./stockfish"):
-        console.print("[yellow]Stockfish não encontrado. Baixando binário otimizado...[/yellow]")
+        visual.console.print("[yellow]Stockfish não encontrado. Baixando binário otimizado...[/yellow]")
         try:
             subprocess.run(["bash", "build_stockfish.sh"], check=True)
-            console.print("[bold green]Stockfish instalado com sucesso![/bold green]")
+            visual.print_success("[bold green]Stockfish instalado com sucesso![/bold green]")
         except subprocess.CalledProcessError as e:
-            console.print(f"[red]Erro ao instalar Stockfish: {e}[/red]")
+            visual.print_error(f"Erro ao instalar Stockfish: {e}")
             exit(1)
     else:
-        console.print("[bold green]Stockfish: Disponível[/bold green]\n")
+        visual.print_success("[bold green]Stockfish: Disponível[/bold green]\n")
 
 def main():
     parser = argparse.ArgumentParser(description="Extrair puzzles táticos de partidas de xadrez em PGN")
@@ -31,31 +29,22 @@ def main():
     parser.add_argument("--verbose", "-v", action="store_true", help="Mostrar saída verbosa (detalhes da análise)")
     args = parser.parse_args()
 
-    # Cabeçalho
-    console.print("\n[bold blue]♟️  Chess Puzzles Extractor[/bold blue]", justify="center")
-
+    # Exibe cabeçalho e configurações usando o módulo visual
+    visual.print_main_header()
     ensure_stockfish_available()
-
-    # Exibir configurações de forma minimalista e elegante
-    console.print("[bold cyan]⚙️  Configurações:[/bold cyan]")
-    console.print(f"📥 Entrada:         [cyan]{args.input}[/cyan]")
-    console.print(f"📤 Saída:           [cyan]{args.output}[/cyan]")
-    console.print(f"🔍 Profundidade:    [cyan]{args.depth}[/cyan]")
-    console.print(f"🌿 Variantes máx.:  [cyan]{args.max_variants}[/cyan]")
-    console.print(f"🗣️  Verbose:         [cyan]{'Sim' if args.verbose else 'Não'}[/cyan]")
-    console.print(f"⏯️  Retomar:         [cyan]{'Sim' if args.resume else 'Não'}[/cyan]\n")
+    visual.print_configurations(args)
 
     try:
         total_games, puzzles_found, puzzles_rejected, reason_stats = generator.generate_puzzles(
             args.input, args.output, depth=args.depth, max_variants=args.max_variants,
             verbose=args.verbose, resume=args.resume
         )
-        console.print(f"[bold green]Processo concluído com sucesso![/bold green]")
+        visual.print_success("[bold green]Processo concluído com sucesso![/bold green]")
     except FileNotFoundError:
-        console.print(f"[bold red]Erro: O arquivo {args.input} não foi encontrado![/bold red]")
+        visual.print_error(f"Erro: O arquivo {args.input} não foi encontrado!")
         exit(1)
     except Exception as e:
-        console.print(f"[bold red]Erro durante a execução: {e}[/bold red]")
+        visual.print_error(f"Erro durante a execução: {e}")
         exit(1)
 
 if __name__ == "__main__":
