@@ -135,7 +135,7 @@ def print_configurations(args):
     console.print(f"⏯️  Retomar:         [cyan]{'Sim' if args.resume else 'Não'}[/cyan]\n")
 
 
-def print_final_stats(game_count, puzzles_found, puzzles_rejected):
+def print_end_stats(game_count, puzzles_found, puzzles_rejected):
     """
     Exibe o painel principal com estatísticas da análise.
 
@@ -236,13 +236,13 @@ def print_rejection_reasons(reason_stats, puzzles_rejected):
         console.print(details_panel)
 
 
-def print_puzzle_categories(objetivo_stats, fase_stats, puzzles_found):
+def print_puzzle_categories(objective_stats, phase_stats, puzzles_found):
     """
     Exibe o painel contendo as categorias de puzzles encontrados, por objetivo e fase do jogo.
 
     Args:
-        objetivo_stats (dict): Estatísticas dos puzzles por objetivo.
-        fase_stats (dict): Estatísticas dos puzzles por fase do jogo.
+        objective_stats (dict): Estatísticas dos puzzles por objetivo.
+        phase_stats (dict): Estatísticas dos puzzles por fase do jogo.
         puzzles_found (int): Número total de puzzles encontrados.
     """
     if puzzles_found > 0:
@@ -254,36 +254,36 @@ def print_puzzle_categories(objetivo_stats, fase_stats, puzzles_found):
         # Seção para Objetivos
         puzzles_stat_table.add_row("", "", "", style="bold cyan")
         puzzles_stat_table.add_row("[bold]Por Objetivo[/]", "", "")
-        for objetivo, count in sorted(objetivo_stats.items(), key=lambda x: x[1], reverse=True):
+        for objective, count in sorted(objective_stats.items(), key=lambda x: x[1], reverse=True):
             percent = (count / puzzles_found) * 100
-            if objetivo == "Mate":
+            if objective == "Mate":
                 row_style = "red"
-            elif objetivo == "Reversão":
+            elif objective == "Reversão":
                 row_style = "green"
-            elif objetivo == "Equalização":
+            elif objective == "Equalização":
                 row_style = "yellow"
-            elif objetivo == "Defesa":
+            elif objective == "Defesa":
                 row_style = "blue"
-            elif objetivo == "Blunder":
+            elif objective == "Blunder":
                 row_style = "bright_red"
             else:
                 row_style = "white"
-            puzzles_stat_table.add_row(objetivo, str(count), f"{percent:.1f}%", style=row_style)
+            puzzles_stat_table.add_row(objective, str(count), f"{percent:.1f}%", style=row_style)
 
         # Seção para Fases
         puzzles_stat_table.add_row("", "", "", style="bold magenta")
         puzzles_stat_table.add_row("[bold]Por Fase do Jogo[/]", "", "")
-        for fase, count in sorted(fase_stats.items(), key=lambda x: x[1], reverse=True):
+        for phase, count in sorted(phase_stats.items(), key=lambda x: x[1], reverse=True):
             percent = (count / puzzles_found) * 100
-            if fase == "Abertura":
+            if phase == "Abertura":
                 row_style = "yellow"
-            elif fase == "Meio-jogo":
+            elif phase == "Meio-jogo":
                 row_style = "green"
-            elif fase == "Final":
+            elif phase == "Final":
                 row_style = "cyan"
             else:
                 row_style = "white"
-            puzzles_stat_table.add_row(fase, str(count), f"{percent:.1f}%", style=row_style)
+            puzzles_stat_table.add_row(phase, str(count), f"{percent:.1f}%", style=row_style)
 
         puzzles_panel = Panel(
             puzzles_stat_table,
@@ -306,7 +306,7 @@ def print_output_file_info(output_path):
     console.print(f"\n[bold blue]Puzzles salvos em:[/] [magenta]{output_path}[/]")
 
 
-def render_final_statistics(game_count, puzzles_found, puzzles_rejected, total_time, average_time_per_game, reason_stats, objetivo_stats, fase_stats, output_path=None):
+def render_end_statistics(game_count, puzzles_found, puzzles_rejected, total_time, average_time_per_game, reason_stats, objective_stats, phase_stats, output_path=None):
     """
     Exibe um resumo final da análise, englobando estatísticas gerais, desempenho,
     motivos de rejeição, categorias dos puzzles e informação do arquivo de saída.
@@ -318,15 +318,15 @@ def render_final_statistics(game_count, puzzles_found, puzzles_rejected, total_t
         total_time (float): Tempo total de análise.
         average_time_per_game (float): Tempo médio por jogo.
         reason_stats (dict): Dicionário com os motivos de rejeição e suas contagens.
-        objetivo_stats (dict): Estatísticas dos puzzles por objetivo.
-        fase_stats (dict): Estatísticas dos puzzles por fase do jogo.
+        objective_stats (dict): Estatísticas dos puzzles por objetivo.
+        phase_stats (dict): Estatísticas dos puzzles por fase do jogo.
         output_path (str, optional): Caminho para o arquivo de saída dos puzzles.
     """
-    print_final_stats(game_count, puzzles_found, puzzles_rejected)
+    print_end_stats(game_count, puzzles_found, puzzles_rejected)
     print_performance_stats(total_time, average_time_per_game, game_count, puzzles_found)
     if puzzles_rejected > 0:
         print_rejection_reasons(reason_stats, puzzles_rejected)
     if puzzles_found > 0:
-        print_puzzle_categories(objetivo_stats, fase_stats, puzzles_found)
+        print_puzzle_categories(objective_stats, phase_stats, puzzles_found)
     if output_path:
         print_output_file_info(output_path)
