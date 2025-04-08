@@ -52,7 +52,7 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
     total_games = 0
     puzzles_found = 0
     puzzles_rejected = 0
-    reason_stats = {
+    rejection_reasons = {
         "peça solta": 0,
         "apenas capturas": 0,
         "ganho não instrutivo": 0,
@@ -61,9 +61,9 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
     }
 
     # Estatísticas adicionais, para os paineis
-    objetivo_stats = defaultdict(int)  # Contagem por tipo de objetivo
-    fase_stats = defaultdict(int)      # Contagem por fase de jogo
-    tempo_inicio = time.time()         # Marca o início da análise
+    objective_stats = defaultdict(int)  # Contagem por tipo de objetivo
+    phase_stats = defaultdict(int)      # Contagem por fase de jogo
+    start_time = time.time()         # Marca o início da análise
 
     # Abrir arquivo PGN de entrada
     try:
@@ -262,7 +262,7 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                         if solver_prev_adv and solver_prev_adv > config.WINNING_ADVANTAGE:
                             puzzle_ok = False
                             reason = "ganho não instrutivo"
-                            reason_stats["ganho não instrutivo"] += 1
+                            rejection_reasons["ganho não instrutivo"] += 1
 
                         # 2. Gerar sequência de solução (caso passe filtros anteriores)
                         if puzzle_ok:
@@ -298,7 +298,7 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                                 # Se muitas alternativas equivalentes, puzzle rejeitado
                                 puzzle_ok = False
                                 reason = "múltiplas soluções"
-                                reason_stats["múltiplas soluções"] += 1
+                                rejection_reasons["múltiplas soluções"] += 1
                             else:
                                 # Adicionar melhor lance e alternativas à árvore de variações
                                 best_move = candidates["best"]
@@ -335,7 +335,7 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                                 if candidates2 is None:
                                     puzzle_ok = False
                                     reason = "múltiplas soluções"
-                                    reason_stats["múltiplas soluções"] += 1
+                                    rejection_reasons["múltiplas soluções"] += 1
                                 else:
                                     # Adicionar segundo lance e alternativas
                                     best_move2 = candidates2["best"]
@@ -357,7 +357,7 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                             if half_moves < 4:
                                 puzzle_ok = False
                                 reason = "sequência muito curta"
-                                reason_stats["sequência muito curta"] += 1
+                                rejection_reasons["sequência muito curta"] += 1
 
                         # Decisão final sobre o puzzle
                         if puzzle_ok:
@@ -412,8 +412,8 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                             puzzle_game.headers["Fase"] = phase
 
                             # Atualizar estatísticas por categoria
-                            objetivo_stats[objective] += 1
-                            fase_stats[phase] += 1
+                            objective_stats[objective] += 1
+                            phase_stats[phase] += 1
 
                             puzzles_found += 1
                             if output_handle:
@@ -452,6 +452,6 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
     # Apresentação final das estatísticas utilizando o módulo visual através da função render_final_statistics
     if verbose:
         print()  # Adiciona uma linha em branco apenas no modo verbose
-    visual.render_final_statistics(game_count, puzzles_found, puzzles_rejected, tempo_total, tempo_medio_por_jogo, reason_stats, objetivo_stats, fase_stats, output_path)
+    visual.render_end_statistics(game_count, puzzles_found, puzzles_rejected, total_time, average_time_per_game, rejection_reasons, objective_stats, phase_stats, output_path)
 
-    return game_count, puzzles_found, puzzles_rejected, reason_stats
+    return game_count, puzzles_found, puzzles_rejected, rejection_reasons
