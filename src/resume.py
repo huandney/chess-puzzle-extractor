@@ -28,13 +28,7 @@ def save_resume(input_path, resume_data, puzzles_dir="puzzles"):
         json.dump(resume_data, f, indent=4, ensure_ascii=False)
 
 def initialize_resume(input_path, puzzles_dir="puzzles", resume_flag=False):
-    # Se o flag resume estiver ativo, carrega skip_games e elapsed_time; caso contrário, reseta
-    if resume_flag:
-        resume_data = load_resume(input_path, puzzles_dir)
-        skip_games = resume_data.get("skip_games", 0)
-        # Usar o método from_resume_data para carregar estatísticas anteriores
-        stats = PuzzleStatistics.from_resume_data(resume_data)
-    else:
+    if not resume_flag:
         resume_data = {
             "skip_games": 0,
             "elapsed_time": 0,
@@ -49,9 +43,13 @@ def initialize_resume(input_path, puzzles_dir="puzzles", resume_flag=False):
         }
         save_resume(input_path, resume_data, puzzles_dir)
         skip_games = 0
-
         # Criar um novo objeto de estatísticas para uma nova análise
         stats = PuzzleStatistics()
+    else:
+        resume_data = load_resume(input_path, puzzles_dir)
+        skip_games = resume_data.get("skip_games", 0)
+        # Usar o método from_resume_data para carregar estatísticas anteriores
+        stats = PuzzleStatistics.from_resume_data(resume_data)
 
     # Retorna os três valores: resume_data, skip_games e stats (estatísticas iniciadas ou carregadas)
     return resume_data, skip_games, stats
