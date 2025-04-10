@@ -7,9 +7,24 @@ class PuzzleStatistics:
         self.total_games = 0
         self.puzzles_found = 0
         self.puzzles_rejected = 0
-        self.objective_stats = defaultdict(int)  # Contagem por tipo de objetivo
-        self.phase_stats = defaultdict(int)      # Contagem por fase de jogo
-        self.rejection_reasons = defaultdict(int)  # Armazena rejeições por motivo
+        self.objective_stats = defaultdict(int)
+        self.phase_stats = defaultdict(int)
+        self.rejection_reasons = defaultdict(int)
+
+    @classmethod
+    def from_resume_data(cls, resume_data):
+        """Cria objeto PuzzleStatistics a partir dos dados carregados do resume."""
+        obj = cls()
+        stats = resume_data.get("stats", {})
+        obj.total_games = stats.get("total_games", 0)
+        obj.puzzles_found = stats.get("puzzles_found", 0)
+        obj.puzzles_rejected = stats.get("puzzles_rejected", 0)
+        obj.objective_stats = defaultdict(int, stats.get("objective_stats", {}))
+        obj.phase_stats = defaultdict(int, stats.get("phase_stats", {}))
+        obj.rejection_reasons = defaultdict(int, stats.get("rejection_reasons", {}))
+        elapsed_time = resume_data.get("elapsed_time", 0)
+        obj.start_time = time.time() - elapsed_time
+        return obj
 
     def increment_games(self, count=1):
         self.total_games += count
@@ -34,19 +49,3 @@ class PuzzleStatistics:
         if self.total_games == 0:
             return 0
         return self.get_elapsed_time() / self.total_games
-
-    def as_dict(self):
-        """
-        Retorna um dicionário com todas as estatísticas para facilitar
-        a integração com módulos de visualização.
-        """
-        return {
-            "total_games": self.total_games,
-            "puzzles_found": self.puzzles_found,
-            "puzzles_rejected": self.puzzles_rejected,
-            "objective_stats": dict(self.objective_stats),
-            "phase_stats": dict(self.phase_stats),
-            "rejection_reasons": dict(self.rejection_reasons),
-            "total_time": self.get_elapsed_time(),
-            "average_time_per_game": self.get_average_time_per_game()
-        }

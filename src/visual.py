@@ -1,8 +1,3 @@
-"""
-Módulo de visualização responsável por toda a lógica de estilo visual e exibição no console.
-Utiliza a biblioteca Rich para formatação de texto, painéis, tabelas, barras de progresso, etc.
-O objetivo é manter o código principal mais limpo e modular, centralizando toda a apresentação.
-"""
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
