@@ -48,6 +48,9 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
     if resume:
         games_iterator = resume_module.skip_processed_games(games_iterator, games_analyzed)
 
+    # Flag para controlar se houve interrupção
+    was_interrupted = False
+
     # Cria a barra de progresso com o tempo acumulado (caso --resume esteja ativo)
     try:
         with visual.create_progress(elapsed_offset=resume_data.get("elapsed_time", 0) if resume else 0) as progress:
@@ -273,23 +276,17 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                                 description=f"[yellow]Analisando partidas... [green]Encontrados: {stats.puzzles_found} [red]Rejeitados: {stats.puzzles_rejected}",
                                 refresh=True)
     except KeyboardInterrupt:
-        # Em caso de interrupção, exibe as estatísticas acumuladas até o momento
-        total_time = time.time() - stats.start_time
-        average_time_per_game = total_time / max(1, stats.total_games)
-        visual.render_end_statistics(stats.total_games, stats.puzzles_found, stats.puzzles_rejected, total_time,
-                                     average_time_per_game, dict(stats.rejection_reasons),
-                                     dict(stats.objective_stats), dict(stats.phase_stats))
+        was_interrupted = True
         visual.print_error("\nInterrompido pelo usuário.")
-        raise
-
     finally:
-        engine.quit()
+        # Limpeza de recursos
+        if engine:
+            engine.quit()
+        if output_handle:
+            output_handle.close()
 
-    total_time = time.time() - stats.start_time
-    average_time_per_game = total_time / max(1, stats.total_games)
+        # Renderiza estatísticas usando o novo método
+        stats.render_statistics(visual, was_interrupted, output_path)
 
-    visual.render_end_statistics(stats.total_games, stats.puzzles_found, stats.puzzles_rejected, total_time,
-                                 average_time_per_game, dict(stats.rejection_reasons),
-                                 dict(stats.objective_stats), dict(stats.phase_stats), output_path)
-
+    # Retorna os dados conforme esperado pela interface existente
     return stats.total_games, stats.puzzles_found, stats.puzzles_rejected, dict(stats.rejection_reasons)
