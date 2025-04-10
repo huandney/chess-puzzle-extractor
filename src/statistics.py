@@ -49,3 +49,17 @@ class PuzzleStatistics:
         if self.total_games == 0:
             return 0
         return self.get_elapsed_time() / self.total_games
+
+    def render_statistics(self, visual_module, was_interrupted=False, output_path=None):
+        """Renderiza todas as estatísticas usando o módulo visual."""
+        total_time = self.get_elapsed_time()
+        avg_time = self.get_average_time_per_game()
+
+        visual_module.render_end_statistics(
+            self.total_games, self.puzzles_found, self.puzzles_rejected,
+            total_time, avg_time,
+            dict(self.rejection_reasons), dict(self.objective_stats), dict(self.phase_stats),
+            None if was_interrupted else output_path
+        )
+
+        return total_time, avg_time
