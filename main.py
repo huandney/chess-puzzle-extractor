@@ -2,6 +2,7 @@ import argparse
 import shutil
 import subprocess
 import os
+import sys
 from src import generator
 from src import config
 from src import visual
@@ -22,12 +23,21 @@ def ensure_stockfish_available():
 def main():
     parser = argparse.ArgumentParser(description="Extrair puzzles táticos de partidas de xadrez em PGN")
     parser.add_argument("input", help="Arquivo PGN de entrada com partidas")
-    parser.add_argument("--output", "-o", help=f"Arquivo de saída para puzzles (padrão: {config.DEFAULT_OUTPUT})", default=config.DEFAULT_OUTPUT)
+    parser.add_argument("--output", "-o", help="Arquivo de saída para puzzles (se não especificado, usa <nome_do_pgn>_puzzles.pgn na pasta puzzles/)")
     parser.add_argument("--depth", "-d", type=int, help=f"Profundidade da análise do motor (padrão: {config.DEFAULT_DEPTH})", default=config.DEFAULT_DEPTH)
     parser.add_argument("--max-variants", "-m", type=int, help=f"Máximo de variantes alternativas na solução (padrão: {config.DEFAULT_MAX_VARIANTS})", default=config.DEFAULT_MAX_VARIANTS)
     parser.add_argument("--resume", "-r", action="store_true", help="Retomar do último progresso salvo (não reanalisar jogos já processados)")
     parser.add_argument("--verbose", "-v", action="store_true", help="Mostrar saída verbosa (detalhes da análise)")
     args = parser.parse_args()
+
+    # Definir caminho de saída padrão se não foi especificado
+    if args.output is None:
+        # Extrair nome base do arquivo de entrada
+        base_name = os.path.splitext(os.path.basename(args.input))[0]
+        # Garantir que a pasta puzzles existe
+        os.makedirs("puzzles", exist_ok=True)
+        # Definir caminho de saída
+        args.output = os.path.join("puzzles", f"{base_name}_puzzles.pgn")
 
     # Exibe cabeçalho e configurações usando o módulo visual
     visual.print_main_header()
@@ -46,6 +56,9 @@ def main():
     except Exception as e:
         visual.print_error(f"Erro durante a execução: {e}")
         exit(1)
+    except KeyboardInterrupt:
+        # Captura KeyboardInterrupt para evitar traceback e exibe mensagem amigável
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
