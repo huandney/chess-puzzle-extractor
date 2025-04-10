@@ -30,8 +30,8 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
         tuple: (total_games, puzzles_found, puzzles_rejected, rejection_reasons)
     """
 
-    # Preparar saída (arquivo ou console)
-    output_handle = open(output_path, "w", encoding="utf-8") if output_path else None
+    # Preparar saída (arquivo ou console) - Modo append se resume=True
+    output_handle = open(output_path, "a" if resume else "w", encoding="utf-8") if output_path else None
 
     # Calcular profundidades de análise utilizando o config
     depths = config.calculate_depths(depth)
@@ -55,9 +55,9 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
         raise Exception(f"Não foi possível iniciar o Stockfish em '{engine_path}'. Erro: {e}")
 
     # Inicializa os dados de resume (ou reseta caso não esteja usando resume)
-    resume_data, skip_games, stats = resume_module.initialize_resume(input_path, puzzles_dir="puzzles", resume_flag=resume)
+    resume_data, games_analyzed, stats = resume_module.initialize_resume(input_path, puzzles_dir="puzzles", resume_flag=resume)
     if resume:
-        visual.print_resume_info(skip_games)
+        visual.print_resume_info(games_analyzed)
 
     # Contar o número total de jogos para a barra de progresso
     total_game_count = utils.count_games(input_path)
@@ -74,7 +74,7 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
     except OSError:
         print("Falha ao obter o tamanho do arquivo")
         file_size = "0.00 MB"
-    visual.print_initial_analysis_info(input_path, file_size, total_game_count, resume, skip_games, depth, depths, max_variants)
+    visual.print_initial_analysis_info(input_path, file_size, total_game_count, resume, games_analyzed, depth, depths, max_variants)
 
     # Obter o offset de tempo salvo (se houver) para a barra de progresso
     elapsed_offset = resume_data.get("elapsed_time", 0) if resume else 0
@@ -82,18 +82,15 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
     # Criar iterador para os jogos via utils e pular os já processados
     games_iterator = utils.iterate_games(input_path)
     if resume:
-        for _ in range(skip_games):
+        for _ in range(games_analyzed):
             next(games_iterator, None)
 
     # Cria a barra de progresso com o tempo acumulado
     try:
         with visual.create_progress(elapsed_offset=elapsed_offset) as progress:
-            task_id = progress.add_task("[yellow]Analisando partidas...", total=total_game_count, completed=skip_games)
-            game_count = skip_games
-            # Iterar por cada jogo no arquivo PGN
+            task_id = progress.add_task("[yellow]Analisando partidas...", total=total_game_count, completed=games_analyzed)
+            # Para cada partida, processa os movimentos e gera puzzles se necessário.
             for game in games_iterator:
-                game_count += 1
-                stats.increment_games()  # Atualiza o contador de jogos processados
 
                 # Obter headers originais do jogo e criar a posição inicial
                 original_headers = game.headers.copy()
@@ -103,7 +100,7 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                 try:
                     info = engine.analyse(board, limit=chess.engine.Limit(depth=depths['scan']))
                 except Exception as e:
-                    progress.log(f"[red]Erro ao analisar posição inicial do jogo {game_count}: {e}[/red]")
+                    progress.log(f"[red]Erro ao analisar posição inicial do jogo {stats.total_games}: {e}[/red]")
                     continue
                 prev_score = info.get("score")
                 prev_cp = prev_score.pov(chess.WHITE).score() if prev_score else None
@@ -176,7 +173,7 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                             board_pre_blunder = board.copy()
                             board_pre_blunder.pop()              # Volta para a posição pré-blunder
 
-                            # Montar objeto Game para o puzzle
+                            # Monta o objeto Game para o puzzle
                             puzzle_game = chess.pgn.Game()
                             # Copiar headers originais
                             for tag, value in original_headers.items():
@@ -273,7 +270,7 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
 
                                 fullmove_num = board_pre_blunder.fullmove_number
                                 piece_count = sum(
-                                    1 for sq in chess.SQUARES 
+                                    1 for sq in chess.SQUARES
                                     if board_pre_blunder.piece_at(sq) and board_pre_blunder.piece_at(sq).piece_type != chess.KING
                                 )
                                 if fullmove_num <= 10:
@@ -303,32 +300,33 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                     prev_score = score
                     prev_cp = post_cp
 
+                # Atualiza o contador acumulado de jogos processados
+                stats.increment_games()
+                # Atualiza os dados de resume usando os valores acumulados
+                resume_module.update_resume_data(input_path, stats.total_games, stats, puzzles_dir="puzzles")
+
                 progress.update(task_id,
                                 advance=1,
                                 description=f"[yellow]Analisando partidas... [green]Encontrados: {stats.puzzles_found} [red]Rejeitados: {stats.puzzles_rejected}",
                                 refresh=True)
-                # Atualizar os dados de resume (incluindo tempo decorrido) após o processamento do jogo
-                resume_module.update_resume_data(input_path, game_count, stats, puzzles_dir="puzzles")
     except KeyboardInterrupt:
-        # Em caso de ctrl+c, captura a interrupção e exibe estatísticas parciais
-        resume_module.update_resume_data(input_path, game_count, stats, puzzles_dir="puzzles")
+        # Em caso de interrupção, exibe as estatísticas acumuladas até o momento
         total_time = time.time() - stats.start_time
-        average_time_per_game = total_time / max(1, game_count)
-        visual.render_end_statistics(game_count, stats.puzzles_found, stats.puzzles_rejected, total_time,
+        average_time_per_game = total_time / max(1, stats.total_games)
+        visual.render_end_statistics(stats.total_games, stats.puzzles_found, stats.puzzles_rejected, total_time,
                                        average_time_per_game, dict(stats.rejection_reasons),
                                        dict(stats.objective_stats), dict(stats.phase_stats))
         visual.print_error("\nInterrompido pelo usuário.")
         engine.quit()
         raise
-    # Fim da iteração dos jogos
 
     engine.quit()
 
     total_time = time.time() - stats.start_time
-    average_time_per_game = total_time / max(1, game_count)
+    average_time_per_game = total_time / max(1, stats.total_games)
 
-    visual.render_end_statistics(game_count, stats.puzzles_found, stats.puzzles_rejected, total_time,
+    visual.render_end_statistics(stats.total_games, stats.puzzles_found, stats.puzzles_rejected, total_time,
                                    average_time_per_game, dict(stats.rejection_reasons),
                                    dict(stats.objective_stats), dict(stats.phase_stats), output_path)
 
-    return game_count, stats.puzzles_found, stats.puzzles_rejected, dict(stats.rejection_reasons)
+    return stats.total_games, stats.puzzles_found, stats.puzzles_rejected, dict(stats.rejection_reasons)
