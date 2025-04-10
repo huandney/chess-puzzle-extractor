@@ -30,7 +30,7 @@ def save_resume(input_path, resume_data, puzzles_dir="puzzles"):
 def initialize_resume(input_path, puzzles_dir="puzzles", resume_flag=False):
     if not resume_flag:
         resume_data = {
-            "skip_games": 0,
+            "games_analyzed": 0,
             "elapsed_time": 0,
             "stats": {
                 "total_games": 0,
@@ -42,22 +42,22 @@ def initialize_resume(input_path, puzzles_dir="puzzles", resume_flag=False):
             }
         }
         save_resume(input_path, resume_data, puzzles_dir)
-        skip_games = 0
+        games_analyzed = 0
         # Criar um novo objeto de estatísticas para uma nova análise
         stats = PuzzleStatistics()
     else:
         resume_data = load_resume(input_path, puzzles_dir)
-        skip_games = resume_data.get("skip_games", 0)
+        games_analyzed = resume_data.get("games_analyzed", 0)
         # Usar o método from_resume_data para carregar estatísticas anteriores
         stats = PuzzleStatistics.from_resume_data(resume_data)
 
-    # Retorna os três valores: resume_data, skip_games e stats (estatísticas iniciadas ou carregadas)
-    return resume_data, skip_games, stats
+    # Retorna os três valores: resume_data, games_analyzed e stats (estatísticas iniciadas ou carregadas)
+    return resume_data, games_analyzed, stats
 
 def update_resume_data(input_path, game_count, stats, puzzles_dir="puzzles"):
     # Atualiza o resume com os dados atuais de progresso e estatísticas, incluindo tempo decorrido
     resume_data = {
-        "skip_games": game_count,
+        "games_analyzed": game_count,
         "elapsed_time": time.time() - stats.start_time,
         "stats": {
             "total_games": stats.total_games,
