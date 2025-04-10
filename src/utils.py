@@ -1,5 +1,6 @@
 import chess.pgn
 import os
+import shutil
 
 # Abre o arquivo PGN e gera um jogo por vez
 def iterate_games(input_path):
