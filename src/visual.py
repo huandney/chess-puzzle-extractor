@@ -54,16 +54,16 @@ def print_stockfish_info(engine_path):
     console.print(f"[bold blue]Usando Stockfish em:[/] {engine_path}")
 
 # Informa quantos jogos já foram processados na retomada
-def print_resume_info(skip_games):
-    console.print(f"[green]Retomando análise a partir do jogo {skip_games}...[/]")
+def print_resume_info(games_analyzed):
+    console.print(f"[green]Retomando análise a partir do jogo {games_analyzed + 1}...[/]")
 
 # Cabeçalho inicial com detalhes do arquivo e configurações
-def print_initial_analysis_info(input_path, file_size, total_games, resume=False, skip_games=0, depth=None, depths=None, max_variants=None):
+def print_initial_analysis_info(input_path, file_size, total_games, resume=False, games_analyzed=0, depth=None, depths=None, max_variants=None):
     console.print("[bold cyan]Iniciando análise tática das partidas...[/]")
     console.print(f"Arquivo de entrada: [magenta]{input_path}[/] ([cyan]{file_size}[/])")
     console.print(f"Total de jogos a analisar: [cyan]{total_games}[/]")
-    if resume and skip_games > 0:
-        console.print(f"Retomando a partir do jogo: [green]{skip_games}[/] ([cyan]{(skip_games/total_games)*100:.1f}%[/] concluído)")
+    if resume and games_analyzed > 0:
+        console.print(f"Jogos analisados: [green]{games_analyzed}[/] ([cyan]{(games_analyzed/total_games)*100:.1f}%[/] concluído)")
     if depth is not None and depths is not None:
         console.print(f"Profundidade de análise: {depth} (scan: [bold cyan]{depths['scan']}[/bold cyan], solve: [bold cyan]{depths['solve']}[/bold cyan])")
     if max_variants is not None:
