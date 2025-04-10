@@ -1,18 +1,8 @@
 import chess.pgn
+import os
 
+# Abre o arquivo PGN e gera um jogo por vez
 def iterate_games(input_path):
-    """
-    Abre o arquivo PGN especificado e gera, um a um, os jogos contidos nele.
-
-    Args:
-        input_path (str): Caminho para o arquivo PGN.
-
-    Yields:
-        chess.pgn.Game: Um objeto representando cada partida.
-
-    Raises:
-        FileNotFoundError: Se o arquivo não puder ser aberto.
-    """
     try:
         with open(input_path, "r", encoding="utf-8", errors="ignore") as pgn_file:
             while True:
@@ -23,18 +13,8 @@ def iterate_games(input_path):
     except FileNotFoundError:
         raise
 
-
+# Conta o número de jogos no arquivo PGN utilizando iterate_games
 def count_games(input_path):
-    """
-    Conta o número de jogos contidos no arquivo PGN.
-    Utiliza a função iterate_games para percorrer todas as partidas e retorna a contagem.
-
-    Args:
-        input_path (str): Caminho para o arquivo PGN.
-
-    Returns:
-        int: Número total de jogos. Se ocorrer algum erro, retorna 1.
-    """
     total_game_count = 0
     try:
         for _ in iterate_games(input_path):
@@ -43,17 +23,8 @@ def count_games(input_path):
         total_game_count = 1
     return max(1, total_game_count)
 
-
+# Formata a avaliação do engine para uma string legível
 def format_eval(score):
-    """
-    Formata a pontuação do motor de xadrez para um formato legível.
-
-    Args:
-        score: Objeto Score do python-chess, contendo a avaliação
-
-    Returns:
-        str: String formatada representando a avaliação (ex: "1.45" ou "M5")
-    """
     if score is None:
         return "?"
     try:
@@ -64,3 +35,33 @@ def format_eval(score):
         return f"{cp / 100:.2f}"
     except Exception:
         return "?"
+
+# Retorna uma string com o tamanho do arquivo formatado
+def format_size(input_path: str) -> str:
+    try:
+        size = os.path.getsize(input_path)
+        if size < 1024:
+            return f"{size} B"
+        elif size < 1024 ** 2:
+            return f"{size / 1024:.2f} KB"
+        else:
+            return f"{size / (1024 ** 2):.2f} MB"
+    except OSError:
+        return "0.00 B"
+
+# Detecta o caminho do Stockfish usando o binário local ou o instalado no sistema
+def detect_stockfish_path():
+    local_stockfish = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "stockfish"))
+    if os.path.isfile(local_stockfish):
+        return local_stockfish  # Usa o binário local
+    elif shutil.which("stockfish"):
+        return "stockfish"      # Usa o Stockfish instalado no sistema
+    else:
+        raise Exception("Nenhum executável do Stockfish foi encontrado. Compile ou instale o Stockfish.")
+
+# Inicia o Stockfish a partir do engine_path fornecido
+def start_stockfish(engine_path: str):
+    try:
+        return chess.engine.SimpleEngine.popen_uci(engine_path)
+    except Exception as e:
+        raise Exception(f"Não foi possível iniciar o Stockfish em '{engine_path}'. Erro: {e}")
