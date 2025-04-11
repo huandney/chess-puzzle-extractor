@@ -6,6 +6,7 @@ import sys
 from src import generator
 from src import config
 from src import visual
+from src.utils import get_default_output_path
 
 def ensure_stockfish_available():
     # Verifica se Stockfish está disponível localmente ou instalado no sistema
@@ -31,13 +32,7 @@ def main():
     args = parser.parse_args()
 
     # Definir caminho de saída padrão se não foi especificado
-    if args.output is None:
-        # Extrair nome base do arquivo de entrada
-        base_name = os.path.splitext(os.path.basename(args.input))[0]
-        # Garantir que a pasta puzzles existe
-        os.makedirs("puzzles", exist_ok=True)
-        # Definir caminho de saída
-        args.output = os.path.join("puzzles", f"{base_name}_puzzles.pgn")
+    args.output = get_default_output_path(args.input, args.output)
 
     # Exibe cabeçalho e configurações usando o módulo visual
     visual.print_main_header()
@@ -45,20 +40,22 @@ def main():
     visual.print_configurations(args)
 
     try:
-        total_games, puzzles_found, puzzles_rejected, reason_stats = generator.generate_puzzles(
+        # Chama o gerador de puzzles e obtém o objeto de resultado
+        result = generator.generate_puzzles(
             args.input, args.output, depth=args.depth, max_variants=args.max_variants,
             verbose=args.verbose, resume=args.resume
         )
-        visual.print_success("[bold green]Processo concluído com sucesso![/bold green]")
+
+        # Exibe mensagem de sucesso apenas se o processo não foi interrompido
+        if result.successful():
+            visual.print_success("[bold green]Processo concluído com sucesso![/bold green]")
+
     except FileNotFoundError:
         visual.print_error(f"Erro: O arquivo {args.input} não foi encontrado!")
         exit(1)
     except Exception as e:
         visual.print_error(f"Erro durante a execução: {e}")
         exit(1)
-    except KeyboardInterrupt:
-        # Captura KeyboardInterrupt para evitar traceback e exibe mensagem amigável
-        sys.exit(0)
 
 if __name__ == "__main__":
     main()
