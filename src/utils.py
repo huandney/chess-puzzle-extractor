@@ -66,3 +66,11 @@ def start_stockfish(engine_path: str):
         return chess.engine.SimpleEngine.popen_uci(engine_path)
     except Exception as e:
         raise Exception(f"Não foi possível iniciar o Stockfish em '{engine_path}'. Erro: {e}")
+
+# Determina o caminho de saída padrão ("<nome_do_arquivo>_puzzles.pgn) ou personalizado
+def get_default_output_path(input_path: str, output: str = None, puzzles_dir: str = "puzzles") -> str:
+    if output is None:
+        base_name = os.path.splitext(os.path.basename(input_path))[0]
+        os.makedirs(puzzles_dir, exist_ok=True)
+        return os.path.join(puzzles_dir, f"{base_name}_puzzles.pgn")
+    return output

@@ -69,3 +69,9 @@ def update_resume_data(input_path, game_count, stats, puzzles_dir="puzzles"):
         }
     }
     save_resume(input_path, resume_data, puzzles_dir)
+
+def skip_processed_games(games_iterator, games_analyzed):
+    # Pula os jogos já processados, retornando o iterador ajustado
+    for _ in range(games_analyzed):
+        next(games_iterator, None)
+    return games_iterator

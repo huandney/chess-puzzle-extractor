@@ -12,7 +12,7 @@ from src import exporter
 from src import config
 from src import visual
 from src import resume as resume_module
-from src.statistics import PuzzleStatistics
+from src.statistics import PuzzleStatistics, AnalysisResult
 
 def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, max_variants=config.DEFAULT_MAX_VARIANTS, verbose=False, resume=False):
     """
@@ -20,39 +20,38 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
     """
     # Preparar saída (arquivo ou console) - Modo append se resume=True
     output_handle = open(output_path, "a" if resume else "w", encoding="utf-8") if output_path else None
+    engine = None
+    was_interrupted = False
 
     # Calcular profundidades de análise utilizando o config
     depths = config.calculate_depths(depth)
 
-    # Detecta o caminho do Stockfish (priorizando o binário local)
-    engine_path = utils.detect_stockfish_path()
-    visual.print_stockfish_info(engine_path)
-
-    # Inicia o Stockfish usando a função do módulo utils
-    engine = utils.start_stockfish(engine_path)
-
-    # Inicializa os dados de resume (ou reseta caso não esteja usando --resume)
-    resume_data, games_analyzed, stats = resume_module.initialize_resume(input_path, puzzles_dir="puzzles", resume_flag=resume)
-    if resume:
-        visual.print_resume_info(games_analyzed)
-
-    # Conta o número total de jogos no arquivo
-    total_game_count = utils.count_games(input_path)
-
-    # Exibe cabeçalho (informações iniciais tamanho do arquivo, total de jogos, etc.)
-    file_size = utils.format_size(input_path)
-    visual.print_initial_analysis_info(input_path, file_size, total_game_count, resume, games_analyzed, depth, depths, max_variants)
-
-    # Cria o iterador e avança os jogos já analisados, se --resume
-    games_iterator = utils.iterate_games(input_path)
-    if resume:
-        games_iterator = resume_module.skip_processed_games(games_iterator, games_analyzed)
-
-    # Flag para controlar se houve interrupção
-    was_interrupted = False
-
-    # Cria a barra de progresso com o tempo acumulado (caso --resume esteja ativo)
     try:
+        # Detecta o caminho do Stockfish (priorizando o binário local)
+        engine_path = utils.detect_stockfish_path()
+        visual.print_stockfish_info(engine_path)
+
+        # Inicia o Stockfish usando a função do módulo utils
+        engine = utils.start_stockfish(engine_path)
+
+        # Inicializa os dados de resume (ou reseta caso não esteja usando --resume)
+        resume_data, games_analyzed, stats = resume_module.initialize_resume(input_path, puzzles_dir="puzzles", resume_flag=resume)
+        if resume:
+            visual.print_resume_info(games_analyzed)
+
+        # Conta o número total de jogos no arquivo
+        total_game_count = utils.count_games(input_path)
+
+        # Exibe cabeçalho (informações iniciais tamanho do arquivo, total de jogos, etc.)
+        file_size = utils.format_size(input_path)
+        visual.print_initial_analysis_info(input_path, file_size, total_game_count, resume, games_analyzed, depth, depths, max_variants)
+
+        # Cria o iterador e avança os jogos já analisados, se --resume
+        games_iterator = utils.iterate_games(input_path)
+        if resume:
+            games_iterator = resume_module.skip_processed_games(games_iterator, games_analyzed)
+
+        # Cria a barra de progresso com o tempo acumulado (caso --resume esteja ativo)
         with visual.create_progress(elapsed_offset=resume_data.get("elapsed_time", 0) if resume else 0) as progress:
             task_id = progress.add_task("[yellow]Analisando partidas...", total=total_game_count, completed=games_analyzed)
             # Processa cada jogo para gerar puzzles
@@ -277,7 +276,13 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
                                 refresh=True)
     except KeyboardInterrupt:
         was_interrupted = True
-        visual.print_error("\nInterrompido pelo usuário.")
+    except Exception:
+        # Captura outras exceções, mas as propaga após limpeza
+        if engine:
+            engine.quit()
+        if output_handle:
+            output_handle.close()
+        raise  # Re-lança a exceção original
     finally:
         # Limpeza de recursos
         if engine:
@@ -285,8 +290,11 @@ def generate_puzzles(input_path, output_path=None, depth=config.DEFAULT_DEPTH, m
         if output_handle:
             output_handle.close()
 
-        # Renderiza estatísticas usando o novo método
-        stats.render_statistics(visual, was_interrupted, output_path)
+    # Cria o objeto de resultado
+    result = AnalysisResult(stats, was_interrupted)
 
-    # Retorna os dados conforme esperado pela interface existente
-    return stats.total_games, stats.puzzles_found, stats.puzzles_rejected, dict(stats.rejection_reasons)
+    # Exibe estatísticas
+    result.display_statistics(visual, output_path)
+
+    # Retorna o objeto de resultado
+    return result

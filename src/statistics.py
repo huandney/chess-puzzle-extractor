@@ -50,16 +50,39 @@ class PuzzleStatistics:
             return 0
         return self.get_elapsed_time() / self.total_games
 
-    def render_statistics(self, visual_module, was_interrupted=False, output_path=None):
-        """Renderiza todas as estatísticas usando o módulo visual."""
-        total_time = self.get_elapsed_time()
-        avg_time = self.get_average_time_per_game()
 
+class AnalysisResult:
+    """Encapsula o resultado completo de uma análise de xadrez."""
+
+    def __init__(self, stats, was_interrupted=False):
+        # Dados principais
+        self.total_games = stats.total_games
+        self.puzzles_found = stats.puzzles_found
+        self.puzzles_rejected = stats.puzzles_rejected
+        self.rejection_reasons = dict(stats.rejection_reasons)
+
+        # Metadados sobre a execução
+        self.was_interrupted = was_interrupted
+        self.elapsed_time = stats.get_elapsed_time()
+        self.avg_time_per_game = stats.get_average_time_per_game()
+
+        # Armazena referência para uso futuro, se necessário
+        self.stats = stats
+
+    def successful(self):
+        """Verifica se a operação foi completada com sucesso."""
+        return not self.was_interrupted
+
+    def display_statistics(self, visual_module, output_path=None):
+        """Exibe estatísticas da análise."""
         visual_module.render_end_statistics(
             self.total_games, self.puzzles_found, self.puzzles_rejected,
-            total_time, avg_time,
-            dict(self.rejection_reasons), dict(self.objective_stats), dict(self.phase_stats),
-            None if was_interrupted else output_path
+            self.elapsed_time, self.avg_time_per_game,
+            self.rejection_reasons,
+            dict(self.stats.objective_stats),
+            dict(self.stats.phase_stats),
+            None if self.was_interrupted else output_path
         )
 
-        return total_time, avg_time
+        if self.was_interrupted:
+            visual_module.print_error("\nInterrompido pelo usuário.")
