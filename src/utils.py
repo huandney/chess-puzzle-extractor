@@ -1,6 +1,9 @@
 import chess.pgn
 import os
 import shutil
+import chess.engine
+from functools import lru_cache
+from src import config
 
 # Abre o arquivo PGN e gera um jogo por vez
 def iterate_games(input_path):
@@ -63,7 +66,10 @@ def detect_stockfish_path():
 # Inicia o Stockfish a partir do engine_path fornecido
 def start_stockfish(engine_path: str):
     try:
-        return chess.engine.SimpleEngine.popen_uci(engine_path)
+        engine = chess.engine.SimpleEngine.popen_uci(engine_path)
+        # Configura o Stockfish com os parâmetros padrão
+        engine.configure(config.DEFAULT_STOCKFISH_PARAMETERS)
+        return engine
     except Exception as e:
         raise Exception(f"Não foi possível iniciar o Stockfish em '{engine_path}'. Erro: {e}")
 
@@ -74,3 +80,26 @@ def get_default_output_path(input_path: str, output: str = None, puzzles_dir: st
         os.makedirs(puzzles_dir, exist_ok=True)
         return os.path.join(puzzles_dir, f"{base_name}_puzzles.pgn")
     return output
+
+# Converte a avaliação para centipawns na perspectiva de solver_color
+def score_to_centipawn(score, solver_color):
+    if score is None:
+        return 0
+    if score.is_mate():
+        mate_plies = score.pov(solver_color).mate()
+        if mate_plies is None:
+            return 0
+        # Se mate em plies positivos => derrota para solver; caso contrário, vitória.
+        return -100000 if mate_plies > 0 else 100000
+    cp = score.pov(solver_color).score()
+    return cp if cp is not None else 0
+
+# Calcula profundidades de análise baseadas na profundidade base fornecida.
+@lru_cache(maxsize=None)
+def calculate_depths(base_depth: int) -> dict:
+    return {
+        'scan': max(1, int(base_depth * config.SCAN_DEPTH_MULTIPLIER)),
+        'solve': max(1, int(base_depth * config.SOLVE_DEPTH_MULTIPLIER)),
+        'base': base_depth,
+        'quick': max(1, base_depth // 4)
+    }
